@@ -8,7 +8,12 @@
 
 #import "STTweetLabel.h"
 
-@implementation STTweetLabel
+@implementation STTweetLabel {
+    NSRegularExpression *_regex;
+    NSRegularExpression *_regexNewLine;
+    NSRegularExpression *_regexForbiddenHashtag;
+    NSRegularExpression *_regexForbiddenLink;
+}
 
 - (id)initWithFrame:(CGRect)frame
 {
@@ -37,6 +42,18 @@
         // Init touchable words colors
         _colorHashtag = [UIColor colorWithWhite:170.0/255.0 alpha:1.0];
         _colorLink = [UIColor colorWithRed:129.0/255.0 green:171.0/255.0 blue:193.0/255.0 alpha:1.0];
+        
+        // Regex to catch @mention #hashtag and link http(s)://
+        NSError *error;
+        _regex = [NSRegularExpression regularExpressionWithPattern:@"((@|#)([A-Z0-9a-z(é|ë|ê|è|à|â|ä|á|ù|ü|û|ú|ì|ï|î|í)_-]+))|(http(s)?://([A-Z0-9a-z._-]*(/)?)*)" options:NSRegularExpressionCaseInsensitive error:&error];
+        
+        // Regex to catch newline
+        _regexNewLine = [NSRegularExpression regularExpressionWithPattern:@"\n" options:NSRegularExpressionCaseInsensitive error:&error];
+        
+        // Regex for forbidden chars on post
+        _regexForbiddenHashtag = [NSRegularExpression regularExpressionWithPattern:@"([^A-Z0-9a-z(é|ë|ê|è|à|â|ä|á|ù|ü|û|ú|ì|ï|î|í)_-]+)" options:NSRegularExpressionCaseInsensitive error:&error];
+        _regexForbiddenLink = [NSRegularExpression regularExpressionWithPattern:@"([^A-Z0-9a-z(é|ë|ê|è|à|â|ä|á|ù|ü|û|ú|ì|ï|î|í)./_-]+)" options:NSRegularExpressionCaseInsensitive error:&error];
+        
     }
     return self;
 }
@@ -69,17 +86,6 @@
     
     [self.textColor set];
     
-    // Regex to catch @mention #hashtag and link http(s)://
-    NSError *error;
-    NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"((@|#)([A-Z0-9a-z(é|ë|ê|è|à|â|ä|á|ù|ü|û|ú|ì|ï|î|í)_-]+))|(http(s)?://([A-Z0-9a-z._-]*(/)?)*)" options:NSRegularExpressionCaseInsensitive error:&error];
-    
-    // Regex to catch newline
-    NSRegularExpression *regexNewLine = [NSRegularExpression regularExpressionWithPattern:@"\n" options:NSRegularExpressionCaseInsensitive error:&error];
-    
-    // Regex for forbidden chars on post
-    NSRegularExpression *regexForbiddenHashtag = [NSRegularExpression regularExpressionWithPattern:@"([^A-Z0-9a-z(é|ë|ê|è|à|â|ä|á|ù|ü|û|ú|ì|ï|î|í)_-]+)" options:NSRegularExpressionCaseInsensitive error:&error];
-    NSRegularExpression *regexForbiddenLink = [NSRegularExpression regularExpressionWithPattern:@"([^A-Z0-9a-z(é|ë|ê|è|à|â|ä|á|ù|ü|û|ú|ì|ï|î|í)./_-]+)" options:NSRegularExpressionCaseInsensitive error:&error];
-
     BOOL loopWord = NO;
     BOOL removeWord = YES;
     int indexOrigin = 0;
@@ -123,7 +129,7 @@
                     loopWord = YES;
                 }
                 
-                NSTextCheckingResult *matchNewLine = [regexNewLine firstMatchInString:word options:0 range:NSMakeRange(0, [word length])];
+                NSTextCheckingResult *matchNewLine = [_regexNewLine firstMatchInString:word options:0 range:NSMakeRange(0, [word length])];
 
                 // Test if the new word must be in a new line
                 if (drawPoint.x + sizeWord.width > rect.size.width && !matchNewLine)
@@ -165,7 +171,7 @@
 
                 if (repeat)
                 {
-                    NSTextCheckingResult *match = [regex firstMatchInString:word options:0 range:NSMakeRange(0, [word length])];
+                    NSTextCheckingResult *match = [_regex firstMatchInString:word options:0 range:NSMakeRange(0, [word length])];
 
                     // Dissolve the word (for example a hashtag: #youtube!, we want only #youtube)
                     preCharacters = [word substringToIndex:match.range.location];
@@ -312,9 +318,9 @@
                             }
                         }
                         
-                        if (([lastPrefix isEqualToString:@"@"] || [lastPrefix isEqualToString:@"#"]) && [regexForbiddenHashtag firstMatchInString:postCharacters options:0 range:NSMakeRange(0, [postCharacters length])])
+                        if (([lastPrefix isEqualToString:@"@"] || [lastPrefix isEqualToString:@"#"]) && [_regexForbiddenHashtag firstMatchInString:postCharacters options:0 range:NSMakeRange(0, [postCharacters length])])
                         {
-                            NSTextCheckingResult *matchFor = [regexForbiddenHashtag firstMatchInString:postCharacters options:0 range:NSMakeRange(0, [postCharacters length])];
+                            NSTextCheckingResult *matchFor = [_regexForbiddenHashtag firstMatchInString:postCharacters options:0 range:NSMakeRange(0, [postCharacters length])];
                             
                             if (matchFor.range.location > 0)
                             {
@@ -328,9 +334,9 @@
                                 lastPrefix = @"";
                             }
                         }
-                        else if ([lastPrefix isEqualToString:@"http"] && [regexForbiddenLink firstMatchInString:postCharacters options:0 range:NSMakeRange(0, [postCharacters length])])
+                        else if ([lastPrefix isEqualToString:@"http"] && [_regexForbiddenLink firstMatchInString:postCharacters options:0 range:NSMakeRange(0, [postCharacters length])])
                         {
-                            NSTextCheckingResult *matchFor = [regexForbiddenLink firstMatchInString:postCharacters options:0 range:NSMakeRange(0, [postCharacters length])];
+                            NSTextCheckingResult *matchFor = [_regexForbiddenLink firstMatchInString:postCharacters options:0 range:NSMakeRange(0, [postCharacters length])];
                             
                             if (matchFor.range.location > 0)
                             {
