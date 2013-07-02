@@ -8,16 +8,12 @@
 
 #import "STTweetLabel.h"
 
-
-@interface STTweetLabel()
-@property (nonatomic) CGPoint startTouchPoint;
-@end
-
 @implementation STTweetLabel {
     NSRegularExpression *_regex;
     NSRegularExpression *_regexNewLine;
     NSRegularExpression *_regexForbiddenHashtag;
     NSRegularExpression *_regexForbiddenLink;
+    UITapGestureRecognizer *_tapGestureRecognizer;
 }
 
 - (id)initWithFrame:(CGRect)frame
@@ -30,6 +26,10 @@
         [self setUserInteractionEnabled:YES];
         [self setNumberOfLines:0];
         [self setLineBreakMode:NSLineBreakByWordWrapping];
+        
+        // add tap gesture recognizer
+        _tapGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(tapGestureRecognizerAction:)];
+        [self addGestureRecognizer:_tapGestureRecognizer];
         
         // Init by default spaces and alignments
         _wordSpace = 0.0;
@@ -455,31 +455,11 @@
     }
 }
 
-- (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event{
-    [super touchesBegan:touches withEvent:event];
-    
-    //Record the starting point, so that when the user is dragging on a special label, it will not be a valid touch.
-    self.startTouchPoint = [[touches anyObject] locationInView:self];
-}
-
-- (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event
+- (void)tapGestureRecognizerAction:(UITapGestureRecognizer *)gesture
 {
-    UITouch *touch = event.allTouches.anyObject;
-    CGPoint touchPoint = [touch locationInView:self];
+
+    CGPoint touchPoint = [gesture locationInView:self];
     
-    if (fabs(self.startTouchPoint.x-touchPoint.x)>5 || fabs(self.startTouchPoint.y - touchPoint.y)>5) {
-        //Invalidate this touch.
-        [super touchesCancelled:touches withEvent:event];
-        return;
-    }
-    
-    if ([touchLocations count] == 0)
-    {
-        [super touchesEnded:touches withEvent:event];
-        return;
-    }
-    
-    __block BOOL touchableWordNotFound = YES;
     [touchLocations enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop)
      {
          CGRect touchZone = [obj CGRectValue];
@@ -532,22 +512,8 @@
                  }
                  
              }
-             
-             //Stop search.
-             touchableWordNotFound = NO;
-             *stop = YES;
          }
      }];
-    
-    if (touchableWordNotFound) {
-        //When the touch in the on a specail label, pass it to the supper.
-        [super touchesEnded:touches withEvent:event];
-    } else {
-        //When it's on a special label. intersect the touch. So it won't be passed to the super.
-        //This is important when STTweetLabel in placed in UITableViewCell.
-        //Prevent the cell get selected.
-        [super touchesCancelled:touches withEvent:event];
-    }
 }
 
 - (NSString *)htmlToText:(NSString *)htmlString
